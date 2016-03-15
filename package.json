@@ -1,0 +1,20 @@
+{
+  "name": "dynaproxy",
+  "version": "0.0.1",
+  "description": "simple dynamic http proxy container",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*"
+  },
+  "keywords": [
+    "proxy",
+    "dynamic",
+    "https"
+  ],
+  "author": "Brian Hurlow",
+  "license": "MIT",
+  "dependencies": {
+    "http-proxy": "^1.13.2",
+    "koa": "^1.2.0"
+  }
+}
