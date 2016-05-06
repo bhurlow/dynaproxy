@@ -1,101 +1,52 @@
 'use strict'
 
-var http = require('http')
-var httpProxy = require('http-proxy')
-var proxy = httpProxy.createProxyServer({});
+var koa = require('koa')
+// var request = require('superagent')
+var request = require('request')
+var app = koa()
 
+// var downstream = 'http://192.168.99.100:3500'
+
+// dynamically changed
 var routes = {}
 
-function listRoutes(req, res) {
-  return res.end(JSON.stringify(routes))
-}
-
-function addRoute(req, res) {
-  let parts = req.url.split('/').filter((x) => x !== '')
-  if (parts.length !== 2) {
-    res.status = 400
-    return res.end('bad request')
+function buildOpts(ctx) {
+  return {
+      method: 'GET'
+    , uri: downstream
   }
-  let host = parts[0]
-  let endpoint = parts[1]
-  console.log(`added route ${host} -> ${endpoint}`)
-  routes[host] = endpoint
-  res.end('ok')
 }
 
-// tbd
-function deleteRoutes(req, res) {
-
+function forward(ctx) {
+  return new Promise(function(resolve, reject) {
+    let opts = buildOpts(ctx)
+    request(opts, function(err, res, body) {
+      if (err) return reject(err)
+      // console.log(res)
+      ctx.body = body
+      resolve()
+    })
+  })
 }
 
-// control server 
+function handleApi(ctx) {
 
-var ctrl = http.createServer(function(req, res) {
-  let url = req.url
-  switch(url) {
-    case "/":
-      listRoutes(req, res)
-      break;
-    default:
-      addRoute(req, res)
+  ctx.body = 'no api method'
+}
+
+app.use(function*(next) {
+  if (!this.host) return handleApi(this)
+  if (!routes[this.host]) {
+    this.body = 'no match'
   }
 })
 
-ctrl.listen(3500)
-
-// proxy server
-
-// save in db
-function indexEvent(e) {
-
-}
-
-function logEvent(e) {
-  let s = `${e.method} -> ${e.url} ${e.address} ${e.headers.host}`
-  console.log(s)
-}
-
-function extractEvent(req) {
-  let e = {
-      method: req.method
-    , headers: req.headers
-    , url: req.url
-    , address: req.connection.remoteAddress
-  }
-  return e
-}
-
-// TODO, marke res time here
-var server = http.createServer(function(req, res) {
-  let e = extractEvent(req)
-  logEvent(e)
-  indexEvent(e)
-
-  let host = e.headers.host
-  let endpoint = routes[host]
-
-  console.log(`routing ${host} to ${endpoint}`)
-
-  if (!endpoint) {
-    res.status = 500
-    res.end('no route \n')
-    return
-  }
-
-  // TODO specify http or https in api
-  let proxyopt = {
-    target: 'http://' + endpoint
-  }
-
-  proxy.web(req, res, proxyopt, function(e) {
-    if (e) {
-      console.log(e)
-      res.status = 500
-      res.end('proxy error')
-    }
-  });
-
+app.use(function*(next) {
+  yield forward(this)
 })
 
-console.log("listening")
-server.listen(3000)
+app.on('error', function(err) {
+  console.log(err.code)
+})
+
+app.listen(3000)
