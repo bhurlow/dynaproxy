@@ -3,7 +3,7 @@
 var koa = require('koa')
 // var request = require('superagent')
 var request = require('request')
-var app = koa()
+var app = module.exports.app = koa()
 
 // var downstream = 'http://192.168.99.100:3500'
 
@@ -30,14 +30,13 @@ function forward(ctx) {
 }
 
 function handleApi(ctx) {
-
   ctx.body = 'no api method'
 }
 
 app.use(function*(next) {
   if (!this.host) return handleApi(this)
   if (!routes[this.host]) {
-    this.body = 'no match'
+    this.body = 'no matching host'
   }
 })
 
@@ -49,4 +48,10 @@ app.on('error', function(err) {
   console.log(err.code)
 })
 
-app.listen(3000)
+if (!module.parent) {
+  console.log('listening on 3000')
+  app.listen(3000)
+}
+
+
+
