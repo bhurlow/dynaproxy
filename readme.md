@@ -2,6 +2,14 @@
 
 A lightweight and configurable http reverse proxy
 
+features include:
+
+- storing requests in a datastore (optional)
+- custom error pages
+- docker aware routing
+- SSL
+
+
 ## 503 pages
 
 when a service becomes unavailable traffic will attempt to serve `/var/503.html`. If that file doesn't exist it will serve a built int 503 page

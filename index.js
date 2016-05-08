@@ -1,5 +1,6 @@
 'use strict'
 
+var path = require('path')
 var koa = require('koa')
 var request = require('superagent')
 var app = module.exports.app = koa()
@@ -138,6 +139,46 @@ router.post('/info', function* (next) {
 
 api.use(router.routes())
 
+// ===== OPT-IN SSL
+
+var CERT_PATH = process.cwd() + '/certs'
+var https = require('https')
+
+var key;
+var cert;
+
+function findCerts() {
+  return new Promise(function(resolve, reject) {
+    console.log(`looking in: ${CERT_PATH} for SSL certs`)
+    var dir = fs.readdirSync(CERT_PATH)
+
+    if (dir.length === 0) {
+      console.log('no certs found -- ignoring ssl')
+      return reject(null)
+    }
+
+    if (dir.length > 2) {
+      console.log('found more than 2 files in certs directory -- ignoring ssl')
+      return reject(null)
+    }
+
+    key = dir.filter((file) => file.endsWith('.key'))[0]
+    cert = dir.filter((file) => file.endsWith('.crt'))[0]
+    return resolve(true)
+
+  })
+}
+
+function createSSLServer(handler) {
+  var options = {
+    key:  fs.readFileSync(path.resolve(CERT_PATH, key)),
+    cert: fs.readFileSync(path.resolve(CERT_PATH, cert))
+  }
+  console.log('starting HTTPS server on port 3000')
+  https.createServer(options, app.callback()).listen(3000)
+}
+
+
 // ===== GOTIME
 
 if (!module.parent) {
@@ -150,12 +191,20 @@ if (!module.parent) {
     catch (err) {
       console.log('no connection to rethink -- skpping')
     }
-    console.log('proxy listening on 3000')
-    app.listen(3000)
+
+    var hasCerts = yield findCerts()
+    if (hasCerts) createSSLServer(app.callback())
+
+    else {
+      console.log('proxy listening on 3000')
+      app.listen(3000)
+    }
+
     console.log('api listening on 3500')
     api.listen(3500)
+
   }).catch(function(err) {
-    console.log(err.name)
+    console.log(err)
   })
 }
 
