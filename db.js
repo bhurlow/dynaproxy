@@ -1,10 +1,9 @@
 
-var RETHINK_HOST = '192.168.99.100'
 var r = require('rethinkdb')
-
-var conn = null
+var RETHINK_HOST = process.env.RETHINK_HOST || 'rethink'
 
 module.exports.connect = function() {
+  console.log(`connecting to rethinkdb @ ${RETHINK_HOST}`)
   return r.connect({
     db: 'stats',
     host: RETHINK_HOST
@@ -13,7 +12,6 @@ module.exports.connect = function() {
 
 module.exports.insertFn = function(conn) {
   return function(doc) {
-    console.log('doingi insert')
     var query = r.table('requests').insert(doc)
     return query.run(conn)
   }
