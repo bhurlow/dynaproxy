@@ -1,9 +1,11 @@
 'use strict'
 
 var koa = require('koa')
-var request = require('request')
+// var request = require('request')
+var request = require('superagent')
 var app = module.exports.app = koa()
 var debug = require('debug')('traffic')
+var router = require('koa-router')()
 
 // ===== ROUTE STORE
 // currently an object, could be persisted somewhere
@@ -11,33 +13,27 @@ var debug = require('debug')('traffic')
 var _routes = {}
 
 function getRoute(hostname) {
-  debug('getting route', hostname)
   return _routes[hostname]
 }
 
 function setRoute(hostname, downstream) {
-  debug('setting route', hostname, downstream)
-  _routes[hostname] = downstream
+  return _routes[hostname] = downstream
 }
 
 // ===== API
 
-function makeReqOpts(ctx) {
-  return {
-      method: 'GET'
-    , uri: downstream
-  }
-}
-
 function forward(ctx) {
+  var method = ctx.method
+  var route = getRoute(ctx.host)
   return new Promise(function(resolve, reject) {
-    let opts = makeReqOpts(ctx)
-    request(opts, function(err, res, body) {
-      if (err) return reject(err)
-      // console.log(res)
-      ctx.body = body
-      resolve()
-    })
+    request(method, route)
+      .end(function(err, res) {
+        if (err) return reject(err);
+        // what more should we set?
+        ctx.body = res.text
+        ctx.status = res.status
+        return resolve(true)
+      })
   })
 }
 
@@ -46,17 +42,18 @@ function handleApi(ctx) {
 }
 
 app.use(function*(next) {
+  var host = this.host
+  var route = getRoute(host)
   if (!this.host) {
     this.status = 400
     this.body = 'must request with hostname'
     return
   }
   if (!getRoute(this.host)) {
+    this.status = 400
     this.body = 'no matching host'
+    return
   }
-})
-
-app.use(function*(next) {
   yield forward(this)
 })
 
@@ -66,27 +63,31 @@ app.on('error', function(err) {
 
 // ===== CTLR API
 
-// add a host mapping to the proxy
-function add(hostname, downstream) {
-
-}
-
-// remove a mapping
-function del() {
-
-}
-
-// show all mappings
-function list() {
-
-}
-
-// delete all 
-function flush() {
-
-}
-
 var api = module.exports.api = koa()
+
+router.get('*', function* (next) {
+  this.status = 400
+})
+
+router.post('/add/:host/:downstream', function* (next) {
+  setRoute(this.params.host, this.params.downstream)
+  this.status = 200
+  this.body = 'route set'
+})
+
+router.post('/del/:host', function* (next) {
+
+})
+
+router.post('/flush', function* (next) {
+
+})
+
+router.post('/info', function* (next) {
+
+})
+
+api.use(router.routes())
 
 // ===== GOTIME
 
