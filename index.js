@@ -20,6 +20,14 @@ function setRoute(hostname, downstream) {
   return _routes[hostname] = downstream
 }
 
+function deleteRoute(hostname) {
+  delete _routes[hostname]
+}
+
+function flushRoutes() {
+  _routes = {}
+}
+
 // ===== API
 
 function forward(ctx) {
@@ -76,15 +84,20 @@ router.post('/add/:host/:downstream', function* (next) {
 })
 
 router.post('/del/:host', function* (next) {
-
+  deleteRoute(this.params.host)
+  this.status = 200
+  this.body = 'route deleted'
 })
 
 router.post('/flush', function* (next) {
-
+  flushRoutes()
+  this.set('Content-Type', 'application/json')
+  this.body = JSON.stringify(_routes)
 })
 
 router.post('/info', function* (next) {
-
+  this.set('Content-Type', 'application/json')
+  this.body = JSON.stringify(_routes)
 })
 
 api.use(router.routes())
