@@ -9,10 +9,18 @@ when a service becomes unavailable traffic will attempt to serve `/var/503.html`
 ## Options
 
 round-robin: tbd
+
 ip-hashing: tbd
+
 rate-limiting: tbd
+
 blacklist: tbd
+
 logs -> rethinkdb: tbd
+
+storing routing table in rethinkdb
+
+docker events
 
 ## Api Interface
 
