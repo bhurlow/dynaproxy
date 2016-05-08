@@ -1,16 +1,28 @@
 'use strict'
 
 var koa = require('koa')
-// var request = require('superagent')
 var request = require('request')
 var app = module.exports.app = koa()
+var debug = require('debug')('traffic')
 
-// var downstream = 'http://192.168.99.100:3500'
+// ===== ROUTE STORE
+// currently an object, could be persisted somewhere
 
-// dynamically changed
-var routes = {}
+var _routes = {}
 
-function buildOpts(ctx) {
+function getRoute(hostname) {
+  debug('getting route', hostname)
+  return _routes[hostname]
+}
+
+function setRoute(hostname, downstream) {
+  debug('setting route', hostname, downstream)
+  _routes[hostname] = downstream
+}
+
+// ===== API
+
+function makeReqOpts(ctx) {
   return {
       method: 'GET'
     , uri: downstream
@@ -19,7 +31,7 @@ function buildOpts(ctx) {
 
 function forward(ctx) {
   return new Promise(function(resolve, reject) {
-    let opts = buildOpts(ctx)
+    let opts = makeReqOpts(ctx)
     request(opts, function(err, res, body) {
       if (err) return reject(err)
       // console.log(res)
@@ -34,8 +46,12 @@ function handleApi(ctx) {
 }
 
 app.use(function*(next) {
-  if (!this.host) return handleApi(this)
-  if (!routes[this.host]) {
+  if (!this.host) {
+    this.status = 400
+    this.body = 'must request with hostname'
+    return
+  }
+  if (!getRoute(this.host)) {
     this.body = 'no matching host'
   }
 })
@@ -48,9 +64,37 @@ app.on('error', function(err) {
   console.log(err.code)
 })
 
+// ===== CTLR API
+
+// add a host mapping to the proxy
+function add(hostname, downstream) {
+
+}
+
+// remove a mapping
+function del() {
+
+}
+
+// show all mappings
+function list() {
+
+}
+
+// delete all 
+function flush() {
+
+}
+
+var api = module.exports.api = koa()
+
+// ===== GOTIME
+
 if (!module.parent) {
-  console.log('listening on 3000')
+  console.log('proxy listening on 3000')
   app.listen(3000)
+  console.log('api listening on 3500')
+  api.listen(3500)
 }
 
 

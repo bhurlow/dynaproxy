@@ -6,6 +6,8 @@ var http = require('http')
 
 // ===== TESTING UTIL =====
 
+// var downstream = 'http://192.168.99.100:3500'
+
 function p(fn) {
   return new Promise(function(resolve, reject) {
     fn(resolve, reject)
@@ -30,10 +32,15 @@ function stopServer() {
   })
 }
 
-function req(path) {
-
+function req(path, host) {
+  var opts = {
+    url: 'http://localhost:3000' + path,
+    headers: {
+      'Host' : host
+    }
+  }
+  return rp(opts)
 }
-
 
 test('basic tests', function*() {
   console.log('starting server')
@@ -48,7 +55,6 @@ test('basic tests', function*() {
   console.log('closing server')
   var res2 = yield stopServer()
 })
-
 
 
 
