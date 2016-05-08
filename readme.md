@@ -22,6 +22,8 @@ storing routing table in rethinkdb
 
 docker events
 
+service alerts?
+
 ## Api Interface
 
 #### POST `/add/:host/:downstream`
@@ -36,11 +38,13 @@ docker events
 
 first you pull and start the container
 
-```
+```bash
 # get it
 docker pull bhurlow/traffic
 
 # run it 
+# open up two ports, one for the proxy
+# another for the api interface
 docker run -d \
   -p 80:3000 \
   -p 3500:3500 \
@@ -49,7 +53,7 @@ docker run -d \
 
 then you add routes using the api 
 
-```
+```bash
 curl -X POST \
  <docker-host-ip>:3500/add/hi.example.com/192.168.99.100:3500
 ```

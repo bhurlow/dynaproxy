@@ -1,11 +1,11 @@
 'use strict'
 
 var koa = require('koa')
-// var request = require('request')
 var request = require('superagent')
 var app = module.exports.app = koa()
 var debug = require('debug')('traffic')
 var router = require('koa-router')()
+var fs = require('fs')
 
 // ===== ROUTE STORE
 // currently an object, could be persisted somewhere
@@ -30,23 +30,31 @@ function flushRoutes() {
 
 // ===== API
 
+function serviceUnavailable(ctx, resolve, reject) {
+  ctx.status = 503
+  ctx.body = fs.readFileSync('./public/503.html')
+  resolve()
+}
+
 function forward(ctx) {
   var method = ctx.method
   var route = getRoute(ctx.host)
   return new Promise(function(resolve, reject) {
     request(method, route)
       .end(function(err, res) {
-        if (err) return reject(err);
+
+        if (err) {
+          console.log(err)
+          return serviceUnavailable(ctx, resolve, reject)
+        }
+
         // what more should we set?
+        // should set headers on req AND res 
         ctx.body = res.text
         ctx.status = res.status
         return resolve(true)
       })
   })
-}
-
-function handleApi(ctx) {
-  ctx.body = 'no api method'
 }
 
 app.use(function*(next) {
