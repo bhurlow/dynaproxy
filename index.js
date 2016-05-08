@@ -6,9 +6,16 @@ var app = module.exports.app = koa()
 var debug = require('debug')('traffic')
 var router = require('koa-router')()
 var fs = require('fs')
+var co = require('co')
+var db = require('./db')
+
+// database conn
+var conn = null
+var insertFn = null
 
 // ===== ROUTE STORE
 // currently an object, could be persisted somewhere
+// todo relocate this section
 
 var _routes = {}
 
@@ -57,6 +64,25 @@ function forward(ctx) {
   })
 }
 
+// store requests in db
+app.use(function* (next) {
+  var start = new Date
+  yield next
+  var ms = new Date - start;
+  this.set('X-Response-Time', ms + 'ms');
+  // not totally clear here about when this is being executed
+  // it *should* not block the request from going
+  if (conn) {
+    yield insertFn({
+      ip: this.ip,
+      headers: this.headers,
+      url: this.url,
+      method: this.method,
+      time: ms
+    })
+  }
+})
+
 app.use(function*(next) {
   var host = this.host
   var route = getRoute(host)
@@ -74,10 +100,12 @@ app.use(function*(next) {
 })
 
 app.on('error', function(err) {
-  console.log(err.code)
+  console.log('ERROR IN APP')
+  console.log(err)
 })
 
 // ===== CTLR API
+// TODO relocate this section
 
 var api = module.exports.api = koa()
 
@@ -113,10 +141,22 @@ api.use(router.routes())
 // ===== GOTIME
 
 if (!module.parent) {
-  console.log('proxy listening on 3000')
-  app.listen(3000)
-  console.log('api listening on 3500')
-  api.listen(3500)
+  co(function*() {
+    try {
+      conn = yield db.connect()
+      console.log('connected to db')
+      insertFn = db.insertFn(conn)
+    }
+    catch (err) {
+      console.log('no connection to rethink -- skpping')
+    }
+    console.log('proxy listening on 3000')
+    app.listen(3000)
+    console.log('api listening on 3500')
+    api.listen(3500)
+  }).catch(function(err) {
+    console.log(err.name)
+  })
 }
 
 
