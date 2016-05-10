@@ -11,6 +11,7 @@ var co = require('co')
 var db = require('./db')
 var routes = require('./lib/routes')
 var docker = require('./lib/docker')
+var forward = require('./lib/forward')
 
 // database conn
 var conn = null
@@ -30,56 +31,6 @@ function serviceUnavailable(ctx, resolve, reject) {
   ctx.status = 503
   ctx.body = fs.readFileSync('./public/503.html')
   resolve()
-}
-
-// still looking for a better way to totally replicate 
-// the client request
-function forward(ctx) {
-  var method = ctx.method
-  var route = routes.getRoute(ctx.host)
-  var url = route + ctx.url
-  url = 'http://' + url
-  console.log(method, url)
-
-  return new Promise(function(resolve, reject) {
-
-    var req = request(method, url)
-
-    console.log('REQUEST HEADERS', ctx.headers)
-    // TODO!
-    // set upstream headers
-    for (let [key, value] of entries(ctx.headers)) {
-      req.set(key, value)
-    }
-    // console.log(req)
-
-    req.end(function(err, res) {
-
-        if (err) {
-          console.log('FORWARD REQUEST ERR')
-          console.log(err)
-          return serviceUnavailable(ctx, resolve, reject)
-        }
-
-        console.log("RESPONSE HEADERS", res.headers)
-        // setting headers for return 
-        // what more should we set?
-        // should set headers on req AND res 
-        // console.log('WOULD SET', res.headers)
-        for (let [key, value] of entries(res.headers)) {
-          ctx.set(key, value)
-        }
-
-        // TODO how to handle gzip?
-        // ctx.set('content-encoding', '')
-        ctx.remove('content-encoding')
-
-        ctx.body = res.text
-        ctx.status = res.status
-        return resolve(true)
-
-      })
-  })
 }
 
 // store requests in db
@@ -115,7 +66,7 @@ app.use(function*(next) {
     this.body = 'no matching host'
     return
   }
-  yield forward(this)
+  yield forward.forward(this)
 })
 
 app.on('error', function(err) {
