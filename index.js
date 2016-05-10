@@ -11,11 +11,14 @@ var co = require('co')
 var db = require('./db')
 var routes = require('./lib/routes')
 var docker = require('./lib/docker')
-var forward = require('./lib/forward')
+var httpProxy = require('http-proxy');
 
 // database conn
 var conn = null
 var insertFn = null
+
+// get proxy fn but dont start server
+var proxy = httpProxy.createProxyServer()
 
 // ===== UTIL
 
@@ -27,10 +30,30 @@ function* entries(obj) {
 
 // ===== API
 
-function serviceUnavailable(ctx, resolve, reject) {
-  ctx.status = 503
-  ctx.body = fs.readFileSync('./public/503.html')
-  resolve()
+function errorPage() {
+  return fs.createReadStream('./public/503.html')
+}
+
+function onProxyError(req, res) {
+  return function(e) {
+    console.log('downstream error')
+    console.log(e)
+    res.statusCode = 503
+    errorPage().pipe(res)
+  }
+}
+
+// here we are using the http-proxy library to handle the
+// requets forwarding since there are lots of small cases that need to be
+// handled
+// this could be replaced in the future with a different proxy function
+// *note this is hijacking the request from koa
+function forward(ctx) {
+  ctx.respond = false
+  var req = ctx.req
+  var res = ctx.res
+  var target = ctx.state.route
+  proxy.web(req, res, { target: 'http://' + target }, onProxyError(req, res))
 }
 
 // store requests in db
@@ -66,7 +89,9 @@ app.use(function*(next) {
     this.body = 'no matching host'
     return
   }
-  yield forward.forward(this)
+  // yield forward(this)
+  this.state.route = route
+  forward(this)
 })
 
 app.on('error', function(err) {
