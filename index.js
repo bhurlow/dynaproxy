@@ -142,7 +142,7 @@ router.post('/flush', function* (next) {
 
 router.post('/info', function* (next) {
   this.set('Content-Type', 'application/json')
-  this.body = JSON.stringify(_routes)
+  this.body = JSON.stringify(routes.getAll())
 })
 
 api.use(router.routes())
