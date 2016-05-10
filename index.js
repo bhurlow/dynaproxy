@@ -32,21 +32,25 @@ function serviceUnavailable(ctx, resolve, reject) {
   resolve()
 }
 
+// still looking for a better way to totally replicate 
+// the client request
 function forward(ctx) {
   var method = ctx.method
   var route = routes.getRoute(ctx.host)
   var url = route + ctx.url
   url = 'http://' + url
-  console.log(url)
+  console.log(method, url)
+
   return new Promise(function(resolve, reject) {
 
     var req = request(method, url)
 
+    console.log('REQUEST HEADERS', ctx.headers)
     // TODO!
     // set upstream headers
-    // for (let [key, value] of entries(ctx.headers)) {
-    //   req.set(key, value)
-    // }
+    for (let [key, value] of entries(ctx.headers)) {
+      req.set(key, value)
+    }
     // console.log(req)
 
     req.end(function(err, res) {
@@ -57,6 +61,7 @@ function forward(ctx) {
           return serviceUnavailable(ctx, resolve, reject)
         }
 
+        console.log("RESPONSE HEADERS", res.headers)
         // setting headers for return 
         // what more should we set?
         // should set headers on req AND res 
@@ -66,11 +71,13 @@ function forward(ctx) {
         }
 
         // TODO how to handle gzip?
-        ctx.set('content-encoding', '')
+        // ctx.set('content-encoding', '')
+        ctx.remove('content-encoding')
 
         ctx.body = res.text
         ctx.status = res.status
         return resolve(true)
+
       })
   })
 }
@@ -188,8 +195,9 @@ function createSSLServer(handler) {
     key:  fs.readFileSync(path.resolve(CERT_PATH, key)),
     cert: fs.readFileSync(path.resolve(CERT_PATH, cert))
   }
-  console.log('starting HTTPS server on port 3000')
-  https.createServer(options, app.callback()).listen(3000)
+  var port = 3100
+  console.log(`starting HTTPS server on port ${port}`)
+  https.createServer(options, app.callback()).listen(port)
 }
 
 
