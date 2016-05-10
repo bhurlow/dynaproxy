@@ -51,23 +51,34 @@ function denyAccess(ctx) {
   ctx.body = 'no access'
 }
 
+function forwardRequest(ctx) {
+  ctx.respond = false
+  var target = ctx.state.route
+  var req = ctx.req
+  var res = ctx.res
+  proxy.web(req, res, { target: 'http://' + target }, onProxyError(req, res))
+}
+
 // here we are using the http-proxy library to handle the
 // requets forwarding since there are lots of small cases that need to be
 // handled
 // this could be replaced in the future with a different proxy function
 // *note this is hijacking the request from koa
 function forward(ctx) {
+
+  var basicAuth = routes.auth[ctx.host]
   var user = auth(ctx)
-  var target = ctx.state.route
-  if (!user || user.name !== 'foo' || user.pass !== 'bar') {
+
+  // if no basic auth exists for this target
+  // move on
+  if (!basicAuth) return forwardRequest(ctx)
+
+  // if auth is wrong, deny
+  if (!user || user.name !== basicAuth.name || user.pass !== basicAuth.pass) {
     denyAccess(ctx)
   }
-  else {
-    ctx.respond = false
-    var req = ctx.req
-    var res = ctx.res
-    proxy.web(req, res, { target: 'http://' + target }, onProxyError(req, res))
-  }
+  // otherwise continue
+  else forwardRequest(ctx)
 }
 
 // store requests in db
@@ -183,7 +194,7 @@ function createSSLServer(handler) {
     key:  fs.readFileSync(path.resolve(CERT_PATH, key)),
     cert: fs.readFileSync(path.resolve(CERT_PATH, cert))
   }
-  var port = 3100
+  var port = 3000
   debug(`starting HTTPS server on port ${port}`)
   https.createServer(options, app.callback()).listen(port)
 }
