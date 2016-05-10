@@ -14,6 +14,14 @@ var db = require('./db')
 var conn = null
 var insertFn = null
 
+// ===== UTIL
+
+function* entries(obj) {
+  for (let key of Object.keys(obj)) {
+    yield [key, obj[key]];
+  }
+}
+
 // ===== ROUTE STORE
 // currently an object, could be persisted somewhere
 // todo relocate this section
@@ -47,17 +55,37 @@ function serviceUnavailable(ctx, resolve, reject) {
 function forward(ctx) {
   var method = ctx.method
   var route = getRoute(ctx.host)
+  var url = route + ctx.url
+  url = 'http://' + url
+  console.log(url)
   return new Promise(function(resolve, reject) {
-    request(method, route)
-      .end(function(err, res) {
+
+    var req = request(method, url)
+    console.log('IN FORWARD')
+
+    // set upstream headers
+    // for (let [key, value] of entries(ctx.headers)) {
+    //   req.set(key, value)
+    // }
+    // console.log(req)
+
+    req.end(function(err, res) {
 
         if (err) {
-          console.log(err)
-          return serviceUnavailable(ctx, resolve, reject)
+          console.log(err.status)
+          // console.log(res.headers)
+          // return serviceUnavailable(ctx, resolve, reject)
         }
-
         // what more should we set?
         // should set headers on req AND res 
+        // console.log('WOULD SET', res.headers)
+        for (let [key, value] of entries(res.headers)) {
+          ctx.set(key, value)
+        }
+
+        // TODO how to handle gzip?
+        ctx.set('content-encoding', '')
+
         ctx.body = res.text
         ctx.status = res.status
         return resolve(true)

@@ -27,12 +27,6 @@ co(function* () {
 
 // ===== TESTING UTIL =====
 
-// function p(fn) {
-//   return new Promise(function(resolve, reject) {
-//     fn(resolve, reject)
-//   })
-// }
-
 var proxyServer = http.createServer(app.callback())
 var apiServer = http.createServer(api.callback())
 
