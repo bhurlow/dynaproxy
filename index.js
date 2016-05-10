@@ -1,5 +1,6 @@
 'use strict'
 
+var debug = require('debug')('traffic:core')
 var path = require('path')
 var koa = require('koa')
 var request = require('superagent')
@@ -8,7 +9,7 @@ var debug = require('debug')('traffic')
 var router = require('koa-router')()
 var fs = require('fs')
 var co = require('co')
-var db = require('./db')
+var db = require('./lib/db')
 var routes = require('./lib/routes')
 var docker = require('./lib/docker')
 var httpProxy = require('http-proxy')
@@ -37,8 +38,8 @@ function errorPage() {
 
 function onProxyError(req, res) {
   return function(e) {
-    console.log('downstream error')
-    console.log(e)
+    debug('downstream error')
+    debug(e)
     res.statusCode = 503
     errorPage().pipe(res)
   }
@@ -91,7 +92,7 @@ app.use(function* (next) {
 app.use(function*(next) {
   var host = this.host
   var route = routes.getRoute(host)
-  console.log(`routing host ${host} -> ${route}`)
+  debug(`routing host ${host} -> ${route}`)
   if (!this.host) {
     this.status = 400
     this.body = 'must request with hostname'
@@ -108,8 +109,8 @@ app.use(function*(next) {
 })
 
 app.on('error', function(err) {
-  console.log('ERROR IN APP')
-  console.log(err)
+  debug('ERROR IN APP')
+  debug(err)
 })
 
 // ===== CTLR API
@@ -118,7 +119,6 @@ app.on('error', function(err) {
 var api = module.exports.api = koa()
 
 // router.get('*', function* (next) {
-  // console.log('yo')
   // this.status = 400
 // })
 
@@ -141,7 +141,6 @@ router.post('/flush', function* (next) {
 })
 
 router.post('/info', function* (next) {
-  console.log("INF")
   this.set('Content-Type', 'application/json')
   this.body = JSON.stringify(routes.getAll())
 })
@@ -158,22 +157,22 @@ var cert;
 
 function findCerts() {
   return new Promise(function(resolve, reject) {
-    console.log(`looking in: ${CERT_PATH} for SSL certs`)
+    debug(`looking in: ${CERT_PATH} for SSL certs`)
     var dir = fs.readdirSync(CERT_PATH)
 
     if (dir.length === 0) {
-      console.log('no certs found -- ignoring ssl')
+      debug('no certs found -- ignoring ssl')
       return reject(null)
     }
 
     if (dir.length > 2) {
-      console.log('found more than 2 files in certs directory -- ignoring ssl')
+      debug('found more than 2 files in certs directory -- ignoring ssl')
       return reject(null)
     }
 
     key = dir.filter((file) => file.endsWith('.key'))[0]
     cert = dir.filter((file) => file.endsWith('.crt'))[0]
-    console.log('found certs', dir)
+    debug('found certs', dir)
     return resolve(true)
 
   })
@@ -185,7 +184,7 @@ function createSSLServer(handler) {
     cert: fs.readFileSync(path.resolve(CERT_PATH, cert))
   }
   var port = 3100
-  console.log(`starting HTTPS server on port ${port}`)
+  debug(`starting HTTPS server on port ${port}`)
   https.createServer(options, app.callback()).listen(port)
 }
 
@@ -196,18 +195,18 @@ if (!module.parent) {
   co(function*() {
     try {
       conn = yield db.connect()
-      console.log('connected to db')
+      debug('connected to db')
       insertFn = db.insertFn(conn)
     }
     catch (err) {
-      console.log('no connection to rethink -- skpping')
+      debug('no connection to rethink -- skpping')
     }
 
     var hasCerts = yield findCerts()
     if (hasCerts) createSSLServer(app.callback())
 
     else {
-      console.log('proxy listening on 3000')
+      debug('proxy listening on 3000')
       app.listen(3000)
     }
 
@@ -216,7 +215,7 @@ if (!module.parent) {
     // docker.initDocker()
     docker.watchDocker()
 
-    console.log('api listening on 3500')
+    debug('api listening on 3500')
     api.listen(3500)
 
   }).catch(function(err) {
