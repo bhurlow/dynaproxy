@@ -41,8 +41,8 @@ function forward(ctx) {
   return new Promise(function(resolve, reject) {
 
     var req = request(method, url)
-    console.log('IN FORWARD')
 
+    // TODO!
     // set upstream headers
     // for (let [key, value] of entries(ctx.headers)) {
     //   req.set(key, value)
@@ -52,10 +52,12 @@ function forward(ctx) {
     req.end(function(err, res) {
 
         if (err) {
-          console.log(err.status)
-          // console.log(res.headers)
-          // return serviceUnavailable(ctx, resolve, reject)
+          console.log('FORWARD REQUEST ERR')
+          console.log(err)
+          return serviceUnavailable(ctx, resolve, reject)
         }
+
+        // setting headers for return 
         // what more should we set?
         // should set headers on req AND res 
         // console.log('WOULD SET', res.headers)
@@ -95,6 +97,7 @@ app.use(function* (next) {
 app.use(function*(next) {
   var host = this.host
   var route = routes.getRoute(host)
+  console.log(`routing host ${host} -> ${route}`)
   if (!this.host) {
     this.status = 400
     this.body = 'must request with hostname'
@@ -118,9 +121,10 @@ app.on('error', function(err) {
 
 var api = module.exports.api = koa()
 
-router.get('*', function* (next) {
-  this.status = 400
-})
+// router.get('*', function* (next) {
+  // console.log('yo')
+  // this.status = 400
+// })
 
 router.post('/add/:host/:downstream', function* (next) {
   routes.setRoute(this.params.host, this.params.downstream)
@@ -141,6 +145,7 @@ router.post('/flush', function* (next) {
 })
 
 router.post('/info', function* (next) {
+  console.log("INF")
   this.set('Content-Type', 'application/json')
   this.body = JSON.stringify(routes.getAll())
 })
@@ -172,6 +177,7 @@ function findCerts() {
 
     key = dir.filter((file) => file.endsWith('.key'))[0]
     cert = dir.filter((file) => file.endsWith('.crt'))[0]
+    console.log('found certs', dir)
     return resolve(true)
 
   })
@@ -210,6 +216,7 @@ if (!module.parent) {
 
     // watch for changes on docker host
     // if it is accessible
+    // docker.initDocker()
     docker.watchDocker()
 
     console.log('api listening on 3500')
