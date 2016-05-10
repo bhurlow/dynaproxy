@@ -16,6 +16,7 @@
   "dependencies": {
     "clearer": "0.0.3",
     "debug": "^2.2.0",
+    "dockerode": "^2.2.10",
     "http-proxy": "^1.13.2",
     "koa": "^1.2.0",
     "koa-router": "^5.4.0",

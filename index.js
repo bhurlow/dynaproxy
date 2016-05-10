@@ -9,6 +9,8 @@ var router = require('koa-router')()
 var fs = require('fs')
 var co = require('co')
 var db = require('./db')
+var routes = require('./lib/routes')
+var docker = require('./lib/docker')
 
 // database conn
 var conn = null
@@ -22,28 +24,6 @@ function* entries(obj) {
   }
 }
 
-// ===== ROUTE STORE
-// currently an object, could be persisted somewhere
-// todo relocate this section
-
-var _routes = {}
-
-function getRoute(hostname) {
-  return _routes[hostname]
-}
-
-function setRoute(hostname, downstream) {
-  return _routes[hostname] = downstream
-}
-
-function deleteRoute(hostname) {
-  delete _routes[hostname]
-}
-
-function flushRoutes() {
-  _routes = {}
-}
-
 // ===== API
 
 function serviceUnavailable(ctx, resolve, reject) {
@@ -54,7 +34,7 @@ function serviceUnavailable(ctx, resolve, reject) {
 
 function forward(ctx) {
   var method = ctx.method
-  var route = getRoute(ctx.host)
+  var route = routes.getRoute(ctx.host)
   var url = route + ctx.url
   url = 'http://' + url
   console.log(url)
@@ -114,13 +94,13 @@ app.use(function* (next) {
 
 app.use(function*(next) {
   var host = this.host
-  var route = getRoute(host)
+  var route = routes.getRoute(host)
   if (!this.host) {
     this.status = 400
     this.body = 'must request with hostname'
     return
   }
-  if (!getRoute(this.host)) {
+  if (!routes.getRoute(this.host)) {
     this.status = 400
     this.body = 'no matching host'
     return
@@ -143,13 +123,13 @@ router.get('*', function* (next) {
 })
 
 router.post('/add/:host/:downstream', function* (next) {
-  setRoute(this.params.host, this.params.downstream)
+  routes.setRoute(this.params.host, this.params.downstream)
   this.status = 200
   this.body = 'route set'
 })
 
 router.post('/del/:host', function* (next) {
-  deleteRoute(this.params.host)
+  routes.deleteRoute(this.params.host)
   this.status = 200
   this.body = 'route deleted'
 })
@@ -227,6 +207,10 @@ if (!module.parent) {
       console.log('proxy listening on 3000')
       app.listen(3000)
     }
+
+    // watch for changes on docker host
+    // if it is accessible
+    docker.watchDocker()
 
     console.log('api listening on 3500')
     api.listen(3500)
