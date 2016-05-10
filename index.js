@@ -11,7 +11,8 @@ var co = require('co')
 var db = require('./db')
 var routes = require('./lib/routes')
 var docker = require('./lib/docker')
-var httpProxy = require('http-proxy');
+var httpProxy = require('http-proxy')
+var auth = require('basic-auth')
 
 // database conn
 var conn = null
@@ -43,17 +44,29 @@ function onProxyError(req, res) {
   }
 }
 
+function denyAccess(ctx) {
+  ctx.status = 401
+  ctx.set('WWW-Authenticate', 'Basic')
+  ctx.body = 'no access'
+}
+
 // here we are using the http-proxy library to handle the
 // requets forwarding since there are lots of small cases that need to be
 // handled
 // this could be replaced in the future with a different proxy function
 // *note this is hijacking the request from koa
 function forward(ctx) {
-  ctx.respond = false
-  var req = ctx.req
-  var res = ctx.res
+  var user = auth(ctx)
   var target = ctx.state.route
-  proxy.web(req, res, { target: 'http://' + target }, onProxyError(req, res))
+  if (!user || user.name !== 'foo' || user.pass !== 'bar') {
+    denyAccess(ctx)
+  }
+  else {
+    ctx.respond = false
+    var req = ctx.req
+    var res = ctx.res
+    proxy.web(req, res, { target: 'http://' + target }, onProxyError(req, res))
+  }
 }
 
 // store requests in db
