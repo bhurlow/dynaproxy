@@ -32,8 +32,15 @@ function* entries(obj) {
 
 // ===== API
 
-function errorPage() {
-  return fs.createReadStream('./public/503.html')
+// TODO this should cache result
+function errorPage(fn) {
+  try {
+    return fs.readFileSync('/var/503.html')
+  }
+  catch (err) {
+    // console.log(err)
+    return fs.readFileSync('./public/503.html')
+  }
 }
 
 function onProxyError(req, res) {
@@ -41,7 +48,8 @@ function onProxyError(req, res) {
     debug('downstream error')
     debug(e)
     res.statusCode = 503
-    errorPage().pipe(res)
+    var page = errorPage()
+    res.end(page)
   }
 }
 

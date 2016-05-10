@@ -9,10 +9,17 @@ features include:
 - docker aware routing
 - SSL
 
+## Virtual Hosts
+
+requests are forwarded to containers on the docker host started with the `VIRTUAL_HOST` env var
+
+## Basic Auth
+
+containers started on a docker host with the `BASIC_AUTH` env var will require basic auth specified in the var value, e.g. `BASIC_AUTH=foo:bar`
 
 ## 503 pages
 
-when a service becomes unavailable traffic will attempt to serve `/var/503.html`. If that file doesn't exist it will serve a built int 503 page
+when a service becomes unavailable traffic will attempt to serve `/var/503.html`. If that file doesn't exist it will serve a built-in 503 page
 
 ## Options
 
